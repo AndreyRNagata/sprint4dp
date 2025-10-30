@@ -44,21 +44,53 @@ O objetivo é encontrar a política de reposição que **minimize o custo total*
 
 **Arquivo:** `modelo_dp.py`
 
-A abordagem recursiva define a função `dp(dia, estoque)` como o custo mínimo a partir de um estado.  
-A cada chamada, a função avalia todas as possíveis quantidades de reposição (`repor`), calcula o custo associado e escolhe a opção com menor custo total.
+A função principal é definida como:
 
-A **Programação Dinâmica** é aplicada através da **memorização**, utilizando o decorador `@lru_cache` para armazenar resultados já calculados e evitar recomputações desnecessárias.
+```python
+@lru_cache(maxsize=None)
+def dp(dia, estoque):
+    if dia == n:
+        return 0
+````
 
-**Principais estruturas utilizadas:**
-- Funções recursivas (`def dp(...)`)
-- Cache automático com `functools.lru_cache`
-- Estrutura condicional para tratamento de excesso e falta de estoque
+* A linha `@lru_cache(maxsize=None)` aplica **memorização automática**, guardando resultados já calculados.
+* O estado `(dia, estoque)` define a subestrutura ótima do problema.
 
-📈 **Vantagem:**  
-Clareza conceitual e facilidade de implementação.  
+O laço principal testa todas as quantidades de reposição possíveis:
 
-📉 **Desvantagem:**  
-Pode gerar estouro de pilha para instâncias muito grandes.
+```python
+for repor in range(0, 11):
+    novo_estoque = estoque + repor - demanda[dia]
+```
+
+Aqui, `repor` é a **decisão** que o gestor toma.
+Para cada decisão, o código calcula o **novo estado** (`novo_estoque`) e o **custo associado**:
+
+```python
+custo = repor * custo_pedido
+if novo_estoque >= 0:
+    custo += novo_estoque * custo_armazenamento
+else:
+    custo += abs(novo_estoque) * custo_falta
+```
+
+Por fim, o custo total daquele caminho é avaliado com uma chamada recursiva:
+
+```python
+total = custo + dp(dia + 1, max(0, novo_estoque))
+melhor = min(melhor, total)
+```
+
+Esse trecho implementa a **função objetivo** de minimizar o custo total, armazenando o menor custo obtido entre todas as opções possíveis.
+
+📈 **Vantagens:**
+
+* Clareza conceitual.
+* Simples de implementar e entender.
+
+📉 **Desvantagens:**
+
+* Pode atingir o limite de recursão para grandes horizontes de tempo.
 
 ---
 
@@ -66,21 +98,49 @@ Pode gerar estouro de pilha para instâncias muito grandes.
 
 **Arquivo:** `modelo_dp_iterativo.py`
 
-Nesta versão, a tabela `dp[dia][estoque]` é construída de forma iterativa, partindo do último dia até o primeiro.  
-Cada célula representa o custo mínimo de operação a partir de um determinado dia e nível de estoque.
+Nesta versão, o problema é resolvido **de trás para frente**, preenchendo uma tabela `dp` que guarda o custo mínimo para cada estado.
 
-A abordagem **bottom-up** elimina chamadas recursivas e garante que os resultados futuros estejam disponíveis quando forem necessários para calcular estados anteriores.
+Inicialização da tabela:
 
-**Principais estruturas utilizadas:**
-- Lista bidimensional (`dp = [[...]]`)
-- Laços `for` aninhados para percorrer dias, estoques e quantidades de reposição
-- Comparações e atualização incremental de custos mínimos
+```python
+dp = [[float('inf')] * (max_estoque + 1) for _ in range(n + 1)]
+dp[n] = [0] * (max_estoque + 1)
+```
 
-📈 **Vantagem:**  
-Mais eficiente e escalável para grandes volumes de dados.  
+Aqui, `dp[dia][estoque]` representa o **custo mínimo** a partir do dia e estoque indicados.
+A última linha (`dp[n]`) é inicializada com `0`, pois não há custos após o último dia.
 
-📉 **Desvantagem:**  
-Requer maior uso de memória para armazenar a tabela completa.
+O cálculo iterativo segue:
+
+```python
+for dia in range(n - 1, -1, -1):
+    for estoque in range(max_estoque + 1):
+        for repor in range(0, 11):
+```
+
+Esses laços simulam **todas as combinações possíveis de dia, estoque e decisão**.
+A atualização do custo é feita da mesma forma que na recursiva:
+
+```python
+novo_estoque = estoque + repor - demanda[dia]
+novo_estoque = max(0, min(max_estoque, novo_estoque))
+custo = repor * custo_pedido
+if estoque + repor >= demanda[dia]:
+    custo += novo_estoque * custo_armazenamento
+else:
+    custo += abs(estoque + repor - demanda[dia]) * custo_falta
+
+dp[dia][estoque] = min(dp[dia][estoque], custo + dp[dia + 1][novo_estoque])
+```
+
+📈 **Vantagens:**
+
+* Elimina chamadas recursivas.
+* Ideal para conjuntos de dados grandes.
+
+📉 **Desvantagens:**
+
+* Ocupa mais memória (tabela completa de estados).
 
 ---
 
@@ -88,11 +148,48 @@ Requer maior uso de memória para armazenar a tabela completa.
 
 **Arquivo:** `main.py`
 
-Ambas as abordagens — recursiva e iterativa — devem produzir **o mesmo resultado ótimo**.  
-O script principal executa as duas versões e compara seus resultados para validar a modelagem.
+O código principal executa as duas abordagens e compara seus resultados:
+
+```python
+resultado_topdown = dp(0, estoque_inicial)
+resultado_bottomup = dp_iterativo[0][estoque_inicial]
+```
+
+Após calcular ambos, o programa verifica se produzem o mesmo valor ótimo:
 
 ```python
 if resultado_topdown == resultado_bottomup:
     print("✅ Ambos os métodos produzem o mesmo resultado.")
 else:
-    print("⚠️ Resultados diferentes.")
+    print("⚠️ Resultados diferentes!")
+```
+
+Esse passo é essencial para **validar a corretude do modelo de Programação Dinâmica**.
+
+---
+
+## 🧾 Execução
+
+```bash
+python main.py
+```
+
+### Saída esperada:
+
+```
+=== COMPARAÇÃO ===
+Recursivo (Top-Down): 49
+Iterativo (Bottom-Up): 49
+✅ Ambos os métodos produzem o mesmo resultado.
+```
+
+---
+
+## 📊 Conclusão
+
+Este projeto mostra como a **Programação Dinâmica** pode ser usada para otimizar a reposição de estoque em unidades laboratoriais.
+A formulação do problema permite que o sistema encontre automaticamente a melhor política de reposição, equilibrando custos de compra, armazenamento e falta.
+
+Ambas as versões — **Top-Down e Bottom-Up** — foram implementadas e **produzem o mesmo resultado ótimo**, confirmando a validade do modelo.
+
+---
